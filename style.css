@@ -120,6 +120,7 @@ code.sourceCode a { color: inherit; text-decoration: none; }
 
 blockquote { margin: 4mm 0; padding: 1mm 4mm; border-left: 2.5pt solid #bbb; color: #444; }
 img { max-width: 100%; }
+.img-center { margin: 4mm 0; text-align: center; }
 figure { margin: 4mm 0; text-align: center; break-inside: avoid; }
 figcaption { font-size: 9pt; color: #666; }
 mark { background: #fff3a3; }

@@ -408,7 +408,12 @@ def preprocess(body: str, files: dict, links=None, current=None) -> str:
             wm = re.match(r"^(\d+)(?:x\d+)?$", alias)
             if wm:
                 width = f"{{width={wm.group(1)}px}}"
-            return f"![]({p.resolve().as_uri()}){width}"
+            img = f"![]({p.resolve().as_uri()}){width}"
+            line_start = m.string.rfind("\n", 0, m.start()) + 1
+            line_end = m.string.find("\n", m.end())
+            alone = not m.string[line_start:m.start()] and not m.string[m.end():line_end if line_end != -1 else None].strip()
+            # imagen sola en su línea: se centra (pandoc no crea <figure> si no hay pie)
+            return f"\n::: {{.img-center}}\n{img}\n:::\n" if alone else img
         return f"*{Path(name).stem}*"  # notas/PDF embebidos: no soportado, se deja el nombre
 
     def link(m):
@@ -618,7 +623,8 @@ def build_pdf(note: Path, meta: dict, body: str, cfg: dict, out: Path) -> None:
         tmp_path = Path(tmp.name)
     try:
         HTML(string=html, base_url=str(note.parent) + "/").write_pdf(
-            tmp_path, stylesheets=[render_css(brand)], finisher=make_link_finisher(out.parent)
+            tmp_path, stylesheets=[render_css(brand)], finisher=make_link_finisher(out.parent),
+            presentational_hints=True,  # sin esto WeasyPrint ignora width="320" de pandoc
         )
         tmp_path.replace(out)
     finally:
