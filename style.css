@@ -1,0 +1,141 @@
+/* Los ${placeholders} los rellena obsidian2pdf.py desde config.toml */
+
+@page {
+  size: A4;
+  margin: 26mm 20mm 24mm 20mm;
+
+  @top-left {
+    width: 50%;
+    content: string(doctitle);
+    font: 8.5pt ${font};
+    color: #555;
+    border-bottom: 0.6pt solid ${primary};
+    padding-bottom: 3mm;
+    vertical-align: bottom;
+  }
+  @top-right {
+    width: 50%;
+    content: ${company_q};
+    font: bold 8.5pt ${font};
+    color: ${primary};
+    text-align: right;
+    border-bottom: 0.6pt solid ${primary};
+    padding-bottom: 3mm;
+    vertical-align: bottom;
+  }
+  @bottom-left {
+    width: 50%;
+    ${footer_left}
+    font: 8pt ${font};
+    color: #777;
+    border-top: 0.6pt solid #ccc;
+    padding-top: 3mm;
+    vertical-align: top;
+  }
+  @bottom-right {
+    width: 50%;
+    content: ${page_label_q} counter(page);
+    font: 8pt ${font};
+    color: #777;
+    text-align: right;
+    border-top: 0.6pt solid #ccc;
+    padding-top: 3mm;
+    vertical-align: top;
+  }
+}
+
+@page cover {
+  margin: 0;
+  @top-left { content: none; border: none; }
+  @top-right { content: none; border: none; }
+  @bottom-left { content: none; border: none; }
+  @bottom-right { content: none; border: none; }
+}
+
+/* ---------- Portada ---------- */
+.cover { page: cover; position: relative; height: 296mm; break-after: page; }
+.cover .band { height: 16mm; background: ${primary}; }
+.cover .logo { position: absolute; top: 34mm; left: 25mm; max-height: 24mm; max-width: 80mm; }
+.cover .cover-body { margin: 89mm 25mm 0 25mm; }
+.cover h1.doc-title {
+  font: bold 32pt/1.15 ${font};
+  color: ${primary};
+  margin: 0 0 6mm;
+  border: none;
+  padding: 0;
+  string-set: doctitle content();
+}
+.cover .subtitle { font: 15pt ${font}; color: #555; margin: 0; }
+.cover .rule { width: 40mm; height: 2mm; background: ${accent}; margin-top: 10mm; }
+.cover .meta {
+  position: absolute; bottom: 28mm; left: 25mm; right: 25mm;
+  border-top: 0.6pt solid #bbb; padding-top: 6mm;
+  font: 10.5pt/1.4 ${font}; color: #222;
+}
+.cover .meta-item { display: inline-block; vertical-align: top; width: 30%; margin-right: 3%; margin-bottom: 4mm; }
+.cover .label { display: block; font-size: 8pt; text-transform: uppercase; letter-spacing: 0.08em; color: ${primary}; margin-bottom: 1mm; }
+
+/* ---------- Índice ---------- */
+#TOC { padding-top: 6mm; break-after: page; font: 11pt/1.6 ${font}; }
+#TOC::before { content: ${toc_title_q}; display: block; font: bold 22pt ${font}; color: ${primary}; margin-bottom: 8mm; }
+#TOC ul { list-style: none; padding-left: 0; margin: 0; }
+#TOC ul ul { padding-left: 7mm; }
+#TOC a { color: inherit; text-decoration: none; }
+#TOC a::after { content: leader('.') target-counter(attr(href), page); }
+
+/* ---------- Contenido ---------- */
+body { font: 10.5pt/1.5 ${font}; color: #1a1a1a; }
+h1, h2, h3, h4 { color: ${primary}; break-after: avoid; }
+h1 { font-size: 20pt; border-bottom: 1.5pt solid ${accent}; padding-bottom: 2mm; margin-top: 10mm; }
+h2 { font-size: 15pt; margin-top: 8mm; }
+h3 { font-size: 12.5pt; }
+h4 { font-size: 11pt; }
+a { color: ${primary}; }
+p { orphans: 3; widows: 3; }
+
+/* Justificado (configurable: justify / hyphenate en [branding]) */
+main p, main li, main td, main th, main blockquote, main figcaption, .callout {
+  text-align: ${text_align};
+  hyphens: ${hyphens};
+}
+main th { text-align: left; }
+main pre, main code, main h1, main h2, main h3, main h4 { text-align: left; hyphens: manual; }
+
+table { border-collapse: collapse; width: 100%; margin: 4mm 0; font-size: 9.5pt; break-inside: avoid; }
+th { background: ${primary}; color: #fff; text-align: left; }
+th, td { border: 0.5pt solid #bbb; padding: 1.5mm 2.5mm; vertical-align: top; }
+tr:nth-child(even) td { background: #f4f6f9; }
+
+code { font-family: "Liberation Mono", "DejaVu Sans Mono", monospace; font-size: 9pt; background: #f1f3f5; padding: 0.3mm 1mm; border-radius: 1mm; }
+pre { background: #f6f8fa; border: 0.5pt solid #ddd; border-left: 2pt solid ${primary}; padding: 3mm; white-space: pre-wrap; word-wrap: break-word; }
+pre code { background: none; padding: 0; }
+
+/* Código resaltado (pandoc: div.sourceCode > pre > code.sourceCode). El fondo y los colores
+   los pone el estilo elegido en highlight_style; aquí solo el marco y el ajuste de línea. */
+div.sourceCode { margin: 4mm 0; padding: 3mm; border: 0.5pt solid #ddd; border-left: 2pt solid ${primary}; }
+div.sourceCode pre { background: none; border: none; padding: 0; margin: 0; }
+pre > code.sourceCode { white-space: pre-wrap; word-wrap: break-word; }
+pre > code.sourceCode > span { display: inline; }
+code.sourceCode a { color: inherit; text-decoration: none; }
+
+blockquote { margin: 4mm 0; padding: 1mm 4mm; border-left: 2.5pt solid #bbb; color: #444; }
+img { max-width: 100%; }
+figure { margin: 4mm 0; text-align: center; break-inside: avoid; }
+figcaption { font-size: 9pt; color: #666; }
+mark { background: #fff3a3; }
+ul.task-list { list-style: none; padding-left: 1mm; }
+ul.task-list label { display: inline; }
+ul.task-list input { display: inline-block; vertical-align: middle; margin: 0 2mm 0 0; }
+
+/* ---------- Notas incrustadas (![[nota]]) ---------- */
+.embed { margin: 4mm 0; padding: 0 4mm; border-left: 2pt solid ${accent}; }
+
+/* ---------- Callouts de Obsidian ---------- */
+.callout { margin: 4mm 0; padding: 3mm 4mm; border-left: 3pt solid ${primary}; background: #eef3f9; break-inside: avoid; }
+.callout > p { margin: 1mm 0; }
+.callout-title { display: block; font-weight: bold; color: ${primary}; margin-bottom: 1mm; }
+.callout-title::before {
+  content: ""; display: inline-block; width: 4.2mm; height: 4.2mm; margin-right: 1.8mm;
+  vertical-align: -0.8mm; background-repeat: no-repeat; background-position: center; background-size: contain;
+}
+${callout_css}

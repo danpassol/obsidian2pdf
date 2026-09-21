@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="$lang$">
+<head>
+<meta charset="utf-8">
+<meta name="generator" content="obsidian2pdf">
+<title>$title$</title>
+$if(author)$<meta name="author" content="$author$">$endif$
+<style>
+$highlighting-css$
+</style>
+</head>
+<body>
+
+<section class="cover">
+  <div class="band"></div>
+  $if(logo)$<img class="logo" src="$logo$" alt="">$endif$
+  <div class="cover-body">
+    <h1 class="doc-title">$title$</h1>
+    $if(subtitle)$<p class="subtitle">$subtitle$</p>$endif$
+    <div class="rule"></div>
+  </div>
+  <div class="meta">
+    $if(author)$<div class="meta-item"><span class="label">$label_author$</span>$author$$if(author_email)$<br>$author_email$$endif$</div>$endif$
+    $if(date)$<div class="meta-item"><span class="label">$label_date$</span>$date$</div>$endif$
+    $if(version)$<div class="meta-item"><span class="label">$label_version$</span>$version$</div>$endif$
+    $if(company)$<div class="meta-item"><span class="label">$label_company$</span>$company$</div>$endif$
+  </div>
+</section>
+
+$if(table-of-contents)$
+<nav id="TOC">
+$table-of-contents$
+</nav>
+$endif$
+
+<main>
+$body$
+</main>
+
+</body>
+</html>

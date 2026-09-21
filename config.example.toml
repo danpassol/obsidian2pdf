@@ -1,0 +1,35 @@
+# ~/.config/obsidian2pdf/config.toml
+# Cada bóveda es una ruta o una tabla { path = "...", name = "..." }. El nombre solo
+# importa con output_mode = "central" (subcarpeta dentro de output_dir); si no lo pones
+# y varias bóvedas se llaman igual, se deduce de la ruta.
+vaults = []
+
+[general]
+output_mode   = "alongside"            # alongside: el PDF se guarda junto a su .md (misma carpeta y nombre)
+                                       # central:   todo en output_dir/<bóveda>/...
+output_dir    = "~/Documentos/PDF"     # solo se usa con output_mode = "central"
+auto_detect_vaults = false             # true: añade también las bóvedas registradas en Obsidian
+status_field  = "status"
+export_status = "finished"
+watch_interval = 30                     # segundos entre comprobaciones en modo --watch (mínimo 5)
+
+[defaults]                              # se usan si la nota no trae author / author_email
+author       = ""
+author_email = ""
+
+[branding]
+company       = "Mi Empresa"
+logo          = ""                      # ruta a PNG/SVG, p.ej. "~/.config/obsidian2pdf/logo.png"
+primary_color = "#1f3a5f"
+accent_color  = "#e07b00"
+confidential  = "Documento confidencial"     # pie izquierdo cuando NO hay logo (con logo, el pie muestra el logo)
+toc_title     = "Índice"
+highlight_style = "pygments"            # resaltado de código: pygments, tango, kate, monochrome, breezedark, zenburn... o none
+page_label    = "Página"
+date_format   = "%d/%m/%Y"
+justify       = true                    # texto justificado
+hyphenate     = true                    # guiones automáticos al justificar (según lang)
+label_author  = "Autor"                 # etiquetas de la portada
+label_date    = "Fecha"
+label_version = "Versión"
+label_company = "Organización"
