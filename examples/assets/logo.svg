@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 132 36" width="132" height="36">
+  <rect x="1" y="1" width="34" height="34" rx="8" fill="#1f3a5f"/>
+  <path d="M10 27 L18 8 L26 27 M13 21 H23" fill="none" stroke="#ffffff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="18" cy="8" r="2.4" fill="#e07b00"/>
+  <text x="44" y="25" font-family="Liberation Sans, DejaVu Sans, sans-serif" font-size="19" font-weight="bold" fill="#1f3a5f" letter-spacing="1.5">ACME</text>
+</svg>
