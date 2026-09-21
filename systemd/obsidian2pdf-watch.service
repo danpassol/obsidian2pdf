@@ -1,0 +1,12 @@
+[Unit]
+Description=Vigila las bóvedas de Obsidian y exporta a PDF las notas con status: finished
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/env python3 %h/.local/share/obsidian2pdf/obsidian2pdf.py --watch
+Restart=on-failure
+RestartSec=10
+Nice=10
+
+[Install]
+WantedBy=default.target

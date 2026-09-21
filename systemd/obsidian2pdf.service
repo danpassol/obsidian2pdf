@@ -1,0 +1,7 @@
+[Unit]
+Description=Exporta notas de Obsidian (status: finished) a PDF corporativo
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/env python3 %h/.local/share/obsidian2pdf/obsidian2pdf.py
+Nice=10
