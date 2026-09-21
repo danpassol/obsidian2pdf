@@ -1,0 +1,21 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# ficheros temporales de exportación y PDFs generados
+*.pdf.tmp
+*.pdf
+!examples/*.pdf
+
+# script local para regenerar los ejemplos
+examples/generate.sh
+
+# configuración y estado locales
+config.toml
+state.json
+
+# editores
+.idea/
+.vscode/
+*.swp
