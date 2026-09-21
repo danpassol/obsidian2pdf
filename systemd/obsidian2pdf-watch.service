@@ -5,6 +5,7 @@ Description=Vigila las bóvedas de Obsidian y exporta a PDF las notas con status
 Type=simple
 ExecStart=/usr/bin/env python3 %h/.local/share/obsidian2pdf/obsidian2pdf.py --watch
 Restart=on-failure
+RestartPreventExitStatus=2
 RestartSec=10
 Nice=10
 

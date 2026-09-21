@@ -41,7 +41,7 @@ GitHub muestra los PDFs directamente en el navegador al abrir el enlace.
 ## Requisitos
 
 - Python 3.11 o superior (usa `tomllib`)
-- [pandoc](https://pandoc.org/) 3.x (probado con 3.10; con versiones anteriores a 3.8 se usa el flag de resaltado antiguo)
+- [pandoc](https://pandoc.org/) 3.x (probado con 3.10). Al arrancar se comprueba que soporte las extensiones que se usan y se avisa si es demasiado antiguo. Algunas distribuciones traen versiones viejas; en ese caso descarga una reciente desde [pandoc.org](https://pandoc.org/installing.html)
 - [WeasyPrint](https://weasyprint.org/) y PyYAML
 - Fuentes: por defecto Liberation Sans o DejaVu Sans
 
@@ -51,7 +51,7 @@ En Arch Linux:
 sudo pacman -S pandoc python-weasyprint python-yaml
 ```
 
-Al arrancar, el programa comprueba las dependencias y avisa de lo que falte.
+Al arrancar, el programa comprueba las dependencias y avisa de lo que falte. El instalador exige Python 3.11 o superior y se detiene si tu `python3` es más antiguo.
 
 ## Instalación
 
@@ -64,9 +64,9 @@ El instalador:
 1. Comprueba las dependencias y, si falta alguna, te dice el comando para instalarla. No instala paquetes por su cuenta.
 2. Copia el programa a `~/.local/share/obsidian2pdf/` y crea el comando `obsidian2pdf` en `~/.local/bin/`.
 3. Te pregunta la configuración y genera `~/.config/obsidian2pdf/config.toml`. Todas las preguntas tienen un valor por defecto, así que basta con pulsar Enter:
-   - bóvedas (detecta las que Obsidian tiene registradas y te deja añadir más por ruta),
+   - bóvedas (detecta las que Obsidian tiene registradas, en su versión nativa, Flatpak o Snap, y te deja añadir más por ruta),
    - dónde guardar los PDFs, autor y email, empresa, logo, colores e idioma (`es` o `en`).
-4. Ofrece instalar el servicio en segundo plano (ver [Ejecutar como servicio](#ejecutar-como-servicio-systemd-de-usuario)).
+4. Ofrece instalar el servicio en segundo plano (ver [Ejecutar como servicio](#ejecutar-como-servicio-systemd-de-usuario)). Si tu sistema no tiene sesión de systemd de usuario (WSL, contenedores, distros sin systemd), lo omite y sigue; puedes usar `obsidian2pdf --watch` a mano.
 
 Otras opciones:
 

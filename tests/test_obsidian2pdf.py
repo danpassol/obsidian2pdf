@@ -303,6 +303,16 @@ class Dependencies(unittest.TestCase):
     def test_todo_ok(self):
         self.assertEqual(o.check_dependencies(self.cfg), [])
 
+    def test_pandoc_antiguo_sin_extensiones(self):
+        old = subprocess.CompletedProcess([], 0, stdout="+task_lists\n-smart\n", stderr="")
+        with mock.patch("subprocess.run", return_value=old):
+            self.assertEqual(o.missing_pandoc_extensions(), ["mark", "lists_without_preceding_blankline", "hard_line_breaks"])
+            problems = o.check_dependencies(self.cfg)
+        self.assertTrue(any("demasiado antiguo" in p and "mark" in p for p in problems))
+
+    def test_pandoc_reciente_soporta_todo(self):
+        self.assertEqual(o.missing_pandoc_extensions(), [])
+
     def test_sin_pandoc(self):
         with mock.patch("shutil.which", return_value=None):
             self.assertTrue(any("pandoc" in p for p in o.check_dependencies(self.cfg)))

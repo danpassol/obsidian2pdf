@@ -95,12 +95,25 @@ pkgs=()
 if ! command -v python3 >/dev/null 2>&1; then
     missing+=("python3"); pkgs+=(python3)
 elif ! python3 -c 'import sys; sys.exit(sys.version_info < (3, 11))'; then
-    missing+=("Python 3.11 o superior (tienes $(python3 -c 'import sys; print("%d.%d" % sys.version_info[:2])'))")
+    die "Se necesita Python 3.11 o superior y tu python3 es $(python3 -c 'import sys; print("%d.%d" % sys.version_info[:2])'). Instala una versión reciente (con el gestor de tu distribución o con pyenv) y vuelve a ejecutar ./install.sh"
 else
     python3 -c 'import yaml' 2>/dev/null || { missing+=("módulo Python PyYAML"); pkgs+=(yaml); }
     python3 -c 'import weasyprint' 2>/dev/null || { missing+=("módulo Python WeasyPrint"); pkgs+=(weasyprint); }
 fi
-command -v pandoc >/dev/null 2>&1 || { missing+=("pandoc"); pkgs+=(pandoc); }
+pandoc_old=0
+if ! command -v pandoc >/dev/null 2>&1; then
+    missing+=("pandoc"); pkgs+=(pandoc)
+else
+    # Se pregunta al propio pandoc qué soporta, en lugar de fiarse del número de versión
+    supported=$(pandoc --list-extensions=markdown 2>/dev/null | sed 's/^[+-]//' || true)
+    lacking=()
+    for ext in mark task_lists lists_without_preceding_blankline hard_line_breaks; do
+        grep -qx "$ext" <<<"$supported" || lacking+=("$ext")
+    done
+    if [ ${#lacking[@]} -gt 0 ]; then
+        missing+=("pandoc más reciente (el tuyo no soporta: ${lacking[*]})"); pandoc_old=1
+    fi
+fi
 
 if [ ${#missing[@]} -eq 0 ]; then
     ok "python3, PyYAML, WeasyPrint y pandoc disponibles"
@@ -118,10 +131,14 @@ else
     elif command -v dnf >/dev/null 2>&1; then
         have pandoc && names+=(pandoc); have weasyprint && names+=(python3-weasyprint); have yaml && names+=(python3-pyyaml)
         hint="sudo dnf install ${names[*]}"
-    else
-        hint="instálalos con el gestor de tu distribución o con pip (pip install --user weasyprint pyyaml)"
     fi
-    [ ${#names[@]} -gt 0 ] && info "Sugerencia (nombres de paquete orientativos): $hint" || info "Sugerencia: $hint"
+    if [ ${#names[@]} -gt 0 ]; then
+        info "Sugerencia (nombres de paquete orientativos): $hint"
+    elif [ ${#pkgs[@]} -gt 0 ]; then
+        info "Instálalos con el gestor de paquetes de tu distribución: pandoc, WeasyPrint (módulo de Python 3) y PyYAML (módulo de Python 3)."
+        info "Si usas pip y tu distribución protege el Python del sistema (PEP 668), pip se negará: usa los paquetes de la distribución o un entorno virtual."
+    fi
+    [ "$pandoc_old" -eq 1 ] && info "Si tu distribución trae un pandoc antiguo, descarga uno reciente de https://pandoc.org/installing.html"
     confirm "¿Continuar la instalación de todos modos?" S || die "Instalación cancelada. Instala las dependencias y vuelve a ejecutar ./install.sh"
 fi
 
@@ -156,7 +173,7 @@ fi
 if [ "$write_config" -eq 1 ]; then
     # --- bóvedas
     detected=()
-    for j in "$HOME/.config/obsidian/obsidian.json" "$HOME/.var/app/md.obsidian.Obsidian/config/obsidian/obsidian.json"; do
+    for j in "$HOME/.config/obsidian/obsidian.json" "$HOME/.var/app/md.obsidian.Obsidian/config/obsidian/obsidian.json" "$HOME/snap/obsidian/current/.config/obsidian/obsidian.json"; do
         [ -f "$j" ] || continue
         while IFS= read -r p; do [ -n "$p" ] && detected+=("$p"); done < <(python3 - "$j" <<'PY' 2>/dev/null || true
 import json, sys
@@ -291,15 +308,22 @@ fi
 title "4/5 Servicio en segundo plano"
 if ! command -v "$SYSTEMCTL" >/dev/null 2>&1; then
     warn "systemd no disponible: no se instala el servicio. Ejecuta 'obsidian2pdf --watch' a mano si lo necesitas."
+elif ! "$SYSTEMCTL" --user show-environment >/dev/null 2>&1; then
+    warn "No hay sesión de systemd de usuario (WSL, contenedor o sesión sin systemd --user): no se instala el servicio."
+    info "Puedes lanzar el modo vigilancia a mano con: obsidian2pdf --watch"
 elif confirm "¿Instalar el servicio que vigila tus bóvedas y exporta al pasar una nota a 'finished'?" S; then
     [ -f "$SRC/systemd/$UNIT" ] || die "No encuentro systemd/$UNIT junto a install.sh"
     mkdir -p "$UNIT_DIR"
     py=$(command -v python3 || echo /usr/bin/python3)
     sed "s|^ExecStart=.*|ExecStart=$py $APP_DIR/obsidian2pdf.py --watch|" "$SRC/systemd/$UNIT" > "$UNIT_DIR/$UNIT"
-    "$SYSTEMCTL" --user daemon-reload
-    "$SYSTEMCTL" --user enable "$UNIT" >/dev/null 2>&1
-    "$SYSTEMCTL" --user restart "$UNIT"  # restart: si ya estaba en marcha, carga la versión nueva
-    ok "Servicio activo. Log: journalctl --user -u ${UNIT%.service} -f"
+    # restart: si ya estaba en marcha, carga la versión nueva
+    if "$SYSTEMCTL" --user daemon-reload && "$SYSTEMCTL" --user enable "$UNIT" >/dev/null 2>&1 \
+            && "$SYSTEMCTL" --user restart "$UNIT"; then
+        ok "Servicio activo. Log: journalctl --user -u ${UNIT%.service} -f"
+    else
+        warn "No se pudo activar el servicio. El programa y la configuración sí están instalados."
+        info "Revisa: systemctl --user status $UNIT   (puedes lanzarlo a mano con: obsidian2pdf --watch)"
+    fi
 else
     info "Sin servicio. Puedes lanzarlo cuando quieras con: obsidian2pdf --watch"
 fi

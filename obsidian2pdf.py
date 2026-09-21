@@ -29,8 +29,11 @@ ASSETS = Path(__file__).resolve().parent
 DEFAULT_CONFIG = Path.home() / ".config/obsidian2pdf/config.toml"
 OBSIDIAN_JSON = [
     Path.home() / ".config/obsidian/obsidian.json",
-    Path.home() / ".var/app/md.obsidian.Obsidian/config/obsidian/obsidian.json",
+    Path.home() / ".var/app/md.obsidian.Obsidian/config/obsidian/obsidian.json",  # Flatpak
+    Path.home() / "snap/obsidian/current/.config/obsidian/obsidian.json",  # Snap
 ]
+# extensiones de pandoc que necesita la exportación (pandoc antiguos no las tienen)
+PANDOC_EXTENSIONS = ["mark", "task_lists", "lists_without_preceding_blankline", "hard_line_breaks"]
 IMG_EXT = {".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp", ".bmp"}
 
 DEFAULTS = {
@@ -76,6 +79,18 @@ class ExportError(Exception):
 # ---------------------------------------------------------------- dependencias
 
 
+def missing_pandoc_extensions() -> list:
+    """Extensiones de PANDOC_EXTENSIONS que el pandoc instalado no soporta."""
+    try:
+        out = subprocess.run(
+            ["pandoc", "--list-extensions=markdown"], capture_output=True, text=True, check=True
+        ).stdout
+    except (OSError, subprocess.CalledProcessError):
+        return []  # no se puede saber: que falle (con su mensaje) al exportar
+    supported = {line.lstrip("+-").strip() for line in out.splitlines()}
+    return [e for e in PANDOC_EXTENSIONS if e not in supported]
+
+
 def check_dependencies(cfg: dict) -> list:
     """Devuelve la lista de problemas que impiden exportar (vacía si todo está bien)."""
     problems = []
@@ -86,6 +101,12 @@ def check_dependencies(cfg: dict) -> list:
             problems.append(f"Falta el módulo Python '{mod}' (instala {pkg})")
     if not shutil.which("pandoc"):
         problems.append("No se encuentra 'pandoc' en el PATH (instala pandoc)")
+    else:
+        missing = missing_pandoc_extensions()
+        if missing:
+            problems.append(
+                "Tu pandoc es demasiado antiguo: no soporta las extensiones %s. "
+                "Instala una versión reciente (https://pandoc.org/installing.html)" % ", ".join(missing))
     for name in ("style.css", "template.html"):
         if not (ASSETS / name).is_file():
             problems.append(f"Falta {ASSETS / name}")
@@ -582,7 +603,7 @@ def build_pdf(note: Path, meta: dict, body: str, cfg: dict, out: Path) -> None:
     }
     cmd = [
         "pandoc",
-        "-f", "markdown+mark+task_lists+lists_without_preceding_blankline+hard_line_breaks",
+        "-f", "markdown+" + "+".join(PANDOC_EXTENSIONS),
         "-t", "html5", "-s", "--toc", "--toc-depth=3", "--mathml",
         "--template", str(ASSETS / "template.html"),
         *highlight_args(brand["highlight_style"]),
