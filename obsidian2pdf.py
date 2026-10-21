@@ -6,6 +6,7 @@ Flujo: frontmatter -> status == finished? -> preprocesado Obsidian -> pandoc (HT
 Solo reexporta si el contenido de la nota ha cambiado desde la última vez.
 """
 import argparse
+import functools
 import hashlib
 import json
 import logging
@@ -571,6 +572,7 @@ def fmt_date(value, fmt: str, fallback: Path) -> str:
     return datetime.fromtimestamp(fallback.stat().st_mtime).strftime(fmt)
 
 
+@functools.cache  # la versión no cambia durante la ejecución
 def pandoc_version() -> tuple:
     try:
         out = subprocess.run(["pandoc", "--version"], capture_output=True, text=True).stdout
