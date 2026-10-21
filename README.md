@@ -113,8 +113,12 @@ author: Nombre        # por defecto, [defaults] author
 author_email: yo@ejemplo.com
 date: 2026-09-21      # por defecto, la fecha de modificación
 version: "1.0"
+output_name: Informe  # nombre del PDF (sin ruta); por defecto, el del fichero .md
+stylesheet: estilos/mi.css  # hoja propia, relativa a la nota; por defecto, style.css
 ---
 ```
+
+`stylesheet` sustituye a `style.css` y admite las mismas variables (`$primary`, `$accent`, `$footer_left`...), así que lo más sencillo es partir de una copia de `style.css`. Si editas la hoja, las notas que la usan se reexportan.
 
 ## Configuración
 

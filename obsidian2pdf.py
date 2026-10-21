@@ -508,10 +508,19 @@ def footer_left(brand: dict) -> str:
     return f"content: {css_string(brand['confidential'])};"
 
 
-def render_css(brand: dict):
+def stylesheet(note: Path, meta: dict) -> str:
+    """Plantilla CSS: la de `stylesheet` en el frontmatter (relativa a la nota) o style.css."""
+    value = meta.get("stylesheet")
+    path = note.parent / Path(str(value)).expanduser() if value else ASSETS / "style.css"
+    try:
+        return path.read_text(encoding="utf-8")
+    except OSError as e:
+        raise ExportError(f"No se puede leer la hoja de estilos {path}: {e.strerror}") from e
+
+
+def render_css(brand: dict, tpl: str):
     from weasyprint import CSS
 
-    tpl = (ASSETS / "style.css").read_text()
     css = Template(tpl).safe_substitute(
         primary=brand["primary_color"],
         accent=brand["accent_color"],
@@ -590,7 +599,7 @@ def run_pandoc(cmd: list, body: str) -> str:
     return res.stdout
 
 
-def build_pdf(note: Path, meta: dict, body: str, cfg: dict, out: Path) -> None:
+def build_pdf(note: Path, meta: dict, body: str, cfg: dict, out: Path, css: str) -> None:
     from weasyprint import HTML
 
     brand, defaults = cfg["branding"], cfg["defaults"]
@@ -623,7 +632,7 @@ def build_pdf(note: Path, meta: dict, body: str, cfg: dict, out: Path) -> None:
         tmp_path = Path(tmp.name)
     try:
         HTML(string=html, base_url=str(note.parent) + "/").write_pdf(
-            tmp_path, stylesheets=[render_css(brand)], finisher=make_link_finisher(out.parent),
+            tmp_path, stylesheets=[render_css(brand, css)], finisher=make_link_finisher(out.parent),
             presentational_hints=True,  # sin esto WeasyPrint ignora width="320" de pandoc
         )
         tmp_path.replace(out)
@@ -642,22 +651,33 @@ def is_ours(note: Path, state: dict) -> bool:
     return str(note) in state
 
 
-def out_path(note: Path, vault: Path, label: str, gen: dict) -> Path:
+def out_path(note: Path, vault: Path, label: str, gen: dict, meta: dict) -> Path:
+    """Ruta del PDF; `output_name` en el frontmatter cambia solo el nombre del fichero."""
     if gen["output_mode"] == "alongside":
-        return note.with_suffix(".pdf")
-    out_dir = Path(gen["output_dir"]).expanduser() / label
-    return (out_dir / note.relative_to(vault)).with_suffix(".pdf")
+        path = note.with_suffix(".pdf")
+    else:
+        path = (Path(gen["output_dir"]).expanduser() / label / note.relative_to(vault)).with_suffix(".pdf")
+    name = str(meta.get("output_name") or "").strip()
+    if not name:
+        return path
+    if Path(name).name != name or name in (".", ".."):  # nada de subir o salir de la carpeta
+        raise ExportError(f"output_name no válido en {note.name}: {name!r} (solo un nombre, sin '/')")
+    return path.with_name(name if name.lower().endswith(".pdf") else name + ".pdf")
+
+
+def note_meta(note: Path, cache: dict) -> dict:
+    if note not in cache:
+        try:
+            cache[note], _ = split_frontmatter(note.read_text(encoding="utf-8"))
+        except OSError:
+            cache[note] = {}
+    return cache[note]
 
 
 def is_exportable(note: Path, gen: dict, cache: dict) -> bool:
     """True si la nota tiene status == export_status (con caché)."""
-    if note not in cache:
-        try:
-            meta, _ = split_frontmatter(note.read_text(encoding="utf-8"))
-        except OSError:
-            meta = {}
-        cache[note] = str(meta.get(gen["status_field"], "")).strip().lower() == gen["export_status"].lower()
-    return cache[note]
+    meta = note_meta(note, cache)
+    return str(meta.get(gen["status_field"], "")).strip().lower() == gen["export_status"].lower()
 
 
 def make_links(notes, files, vault, label, gen) -> Links:
@@ -665,7 +685,7 @@ def make_links(notes, files, vault, label, gen) -> Links:
     return Links(
         notes, files,
         lambda n: is_exportable(n, gen, cache),
-        lambda n: out_path(n, vault, label, gen),
+        lambda n: out_path(n, vault, label, gen, note_meta(n, cache)),
     )
 
 
@@ -680,9 +700,11 @@ def process_note(note, vault, label, links, cfg, state, force, ignore_status=Fal
         return False
 
     expanded = expand_embeds(body, links, note, (note,))
-    # si hay embeds, el hash incluye su contenido: cambiar una nota incrustada reexporta esta
-    digest = hashlib.sha256((text if expanded == body else text + "\0" + expanded).encode()).hexdigest()
-    out = out_path(note, vault, label, gen)
+    css = stylesheet(note, meta)
+    # el hash incluye los embeds y la hoja propia: si cambian, se reexporta esta nota
+    parts = [text] + ([expanded] if expanded != body else []) + ([css] if meta.get("stylesheet") else [])
+    digest = hashlib.sha256("\0".join(parts).encode()).hexdigest()
+    out = out_path(note, vault, label, gen, meta)
     if not force and state.get(str(note)) == digest and out.exists():
         return False
     if out.exists() and not is_ours(note, state):
@@ -695,7 +717,7 @@ def process_note(note, vault, label, links, cfg, state, force, ignore_status=Fal
         return False
 
     log.info("Exportando %s -> %s", note.relative_to(vault), out)
-    build_pdf(note, meta, preprocess(expanded, links.files, links, note), cfg, out)
+    build_pdf(note, meta, preprocess(expanded, links.files, links, note), cfg, out, css)
     state[str(note)] = digest
     return True
 

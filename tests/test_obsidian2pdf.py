@@ -187,6 +187,47 @@ class Embeds(unittest.TestCase):
         self.assertNotEqual(first, state[str(self.host)])
 
 
+class FrontmatterOptions(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.vault = make_vault(Path(self.tmp.name), {
+            "a.md": "---\nstatus: finished\n---\n[[b]]\n",
+            "b.md": "---\nstatus: finished\noutput_name: Informe final\n---\n",
+            "css/mi.css": "body { color: $primary; }",
+        })
+        self.links, _ = links_for(self.vault)
+        self.cfg = o.load_config(Path(self.tmp.name) / "no.toml")
+
+    def test_output_name(self):
+        out = lambda m: o.out_path(self.vault / "a.md", self.vault, "v", GEN, m)  # noqa: E731
+        self.assertEqual(out({}), self.vault / "a.pdf")
+        self.assertEqual(out({"output_name": "X"}), self.vault / "X.pdf")
+        self.assertEqual(out({"output_name": "X.pdf"}), self.vault / "X.pdf")
+        for bad in ("../X", "sub/X", ".."):
+            with self.assertRaises(o.ExportError):
+                out({"output_name": bad})
+
+    def test_enlace_usa_output_name(self):
+        self.assertEqual(self.links.resolve("b", self.vault / "a.md"), self.vault / "Informe final.pdf")
+
+    def test_stylesheet_relativa_a_la_nota_y_en_el_hash(self):
+        note = self.vault / "a.md"
+        self.assertEqual(o.stylesheet(note, {"stylesheet": "css/mi.css"}), "body { color: $primary; }")
+        self.assertEqual(o.stylesheet(note, {}), (o.ASSETS / "style.css").read_text())
+        with self.assertRaises(o.ExportError):
+            o.stylesheet(note, {"stylesheet": "no.css"})
+        note.write_text("---\nstatus: finished\nstylesheet: css/mi.css\n---\nhola\n")
+        state = {}
+        with mock.patch.object(o, "build_pdf") as build:
+            o.process_note(note, self.vault, "v", self.links, self.cfg, state, True)
+            first = state[str(note)]
+            (self.vault / "css/mi.css").write_text("body { color: red; }")
+            o.process_note(note, self.vault, "v", self.links, self.cfg, state, True)
+        self.assertNotEqual(first, state[str(note)])
+        self.assertEqual(build.call_args.args[5], "body { color: red; }")
+
+
 class CodeAndCallouts(unittest.TestCase):
     def test_alias_de_lenguaje(self):
         out = o.normalize_fences("```shell\nx\n```\n~~~tsx\ny\n~~~\n```python\nz\n```")
