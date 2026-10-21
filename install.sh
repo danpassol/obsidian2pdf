@@ -131,6 +131,9 @@ else
     elif command -v dnf >/dev/null 2>&1; then
         have pandoc && names+=(pandoc); have weasyprint && names+=(python3-weasyprint); have yaml && names+=(python3-pyyaml)
         hint="sudo dnf install ${names[*]}"
+    elif command -v nix >/dev/null 2>&1; then
+        names=(nix)  # con Nix no se instalan dependencias sueltas: el flake trae todo
+        hint="nix profile install github:danpassol/obsidian2pdf/feat/nix (y no uses este instalador; ver README, sección Nix)"
     fi
     if [ ${#names[@]} -gt 0 ]; then
         info "Sugerencia (nombres de paquete orientativos): $hint"
