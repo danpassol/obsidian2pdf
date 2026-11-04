@@ -79,15 +79,13 @@ Se puede volver a ejecutar para actualizar: copia la versión nueva y, si ya hay
 
 ### Nix (experimental)
 
-> En pruebas: el flake vive en la rama `feat/nix` hasta que se dé por bueno.
-
 El repositorio incluye un `flake.nix` que trae Python con WeasyPrint y PyYAML, pandoc y las fuentes. Si `./install.sh` detecta Nix, ofrece compilar el flake (`nix build`) y configura el comando, `config.toml` y el servicio igual que en la instalación normal.
 
 Sin el instalador:
 
 ```bash
-nix run github:danpassol/obsidian2pdf/feat/nix -- --help        # probar sin instalar
-nix profile add github:danpassol/obsidian2pdf/feat/nix      # instalar el comando obsidian2pdf
+nix run github:danpassol/obsidian2pdf -- --help        # probar sin instalar
+nix profile add github:danpassol/obsidian2pdf      # instalar el comando obsidian2pdf
 ```
 
 Después crea `~/.config/obsidian2pdf/config.toml` a partir de [`config.example.toml`](config.example.toml). Para el servicio, copia `systemd/obsidian2pdf-watch.service` como se explica en [Ejecutar como servicio](#ejecutar-como-servicio-systemd-de-usuario) y cambia la línea `ExecStart` por `ExecStart=%h/.nix-profile/bin/obsidian2pdf --watch`.
