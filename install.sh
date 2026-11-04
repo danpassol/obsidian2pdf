@@ -10,6 +10,8 @@
 #   ~/.local/bin/obsidian2pdf               comando
 #   ~/.config/obsidian2pdf/config.toml      configuración
 #   ~/.config/systemd/user/obsidian2pdf-watch.service   servicio (opcional)
+#
+# Si detecta Nix, ofrece compilar el flake (trae Python, WeasyPrint, pandoc y fuentes).
 set -euo pipefail
 
 SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -21,6 +23,8 @@ STATE="$HOME/.local/state/obsidian2pdf"
 UNIT_DIR="$HOME/.config/systemd/user"
 UNIT="obsidian2pdf-watch.service"
 SYSTEMCTL="${SYSTEMCTL:-systemctl}"  # sobrescribible, para pruebas
+NIX="${NIX:-nix}"                    # ídem
+PY=python3                           # Python para el asistente; con Nix, el del flake
 
 ASSUME_YES=0
 MODE=install
@@ -28,7 +32,7 @@ for arg in "$@"; do
     case "$arg" in
         -y|--yes) ASSUME_YES=1 ;;
         --uninstall) MODE=uninstall ;;
-        -h|--help) sed -n '2,12p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
+        -h|--help) sed -n '2,14p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
         *) echo "Opción desconocida: $arg (prueba --help)" >&2; exit 2 ;;
     esac
 done
@@ -90,9 +94,17 @@ fi
 # ---------------------------------------------------------------- dependencias
 
 title "1/5 Comprobando dependencias"
+USE_NIX=0
+if command -v "$NIX" >/dev/null 2>&1 \
+        && confirm "Nix detectado: ¿instalar con el flake? (trae Python, WeasyPrint, pandoc y fuentes)" S; then
+    USE_NIX=1
+    ok "Se usará Nix: no hace falta instalar dependencias"
+fi
 missing=()
 pkgs=()
-if ! command -v python3 >/dev/null 2>&1; then
+if [ "$USE_NIX" -eq 1 ]; then
+    :
+elif ! command -v python3 >/dev/null 2>&1; then
     missing+=("python3"); pkgs+=(python3)
 elif ! python3 -c 'import sys; sys.exit(sys.version_info < (3, 11))'; then
     die "Se necesita Python 3.11 o superior y tu python3 es $(python3 -c 'import sys; print("%d.%d" % sys.version_info[:2])'). Instala una versión reciente (con el gestor de tu distribución o con pyenv) y vuelve a ejecutar ./install.sh"
@@ -101,7 +113,9 @@ else
     python3 -c 'import weasyprint' 2>/dev/null || { missing+=("módulo Python WeasyPrint"); pkgs+=(weasyprint); }
 fi
 pandoc_old=0
-if ! command -v pandoc >/dev/null 2>&1; then
+if [ "$USE_NIX" -eq 1 ]; then
+    :
+elif ! command -v pandoc >/dev/null 2>&1; then
     missing+=("pandoc"); pkgs+=(pandoc)
 else
     # Se pregunta al propio pandoc qué soporta, en lugar de fiarse del número de versión
@@ -115,7 +129,9 @@ else
     fi
 fi
 
-if [ ${#missing[@]} -eq 0 ]; then
+if [ "$USE_NIX" -eq 1 ]; then
+    :
+elif [ ${#missing[@]} -eq 0 ]; then
     ok "python3, PyYAML, WeasyPrint y pandoc disponibles"
 else
     for m in "${missing[@]}"; do warn "Falta: $m"; done
@@ -131,9 +147,6 @@ else
     elif command -v dnf >/dev/null 2>&1; then
         have pandoc && names+=(pandoc); have weasyprint && names+=(python3-weasyprint); have yaml && names+=(python3-pyyaml)
         hint="sudo dnf install ${names[*]}"
-    elif command -v nix >/dev/null 2>&1; then
-        names=(nix)  # con Nix no se instalan dependencias sueltas: el flake trae todo
-        hint="nix profile install github:danpassol/obsidian2pdf/feat/nix (y no uses este instalador; ver README, sección Nix)"
     fi
     if [ ${#names[@]} -gt 0 ]; then
         info "Sugerencia (nombres de paquete orientativos): $hint"
@@ -152,9 +165,20 @@ for f in obsidian2pdf.py style.css template.html; do
     [ -f "$SRC/$f" ] || die "No encuentro $f junto a install.sh ($SRC)"
 done
 mkdir -p "$APP_DIR" "$(dirname "$BIN")" "$CONF_DIR"
-install -m 644 "$SRC/style.css" "$SRC/template.html" "$APP_DIR/"
-install -m 755 "$SRC/obsidian2pdf.py" "$APP_DIR/"
-ln -sf "$APP_DIR/obsidian2pdf.py" "$BIN"
+if [ "$USE_NIX" -eq 1 ]; then
+    # El enlace result es raíz del recolector de basura de Nix: la build no se borra mientras exista
+    info "Compilando el flake con Nix (la primera vez tarda un poco)..."
+    "$NIX" --extra-experimental-features 'nix-command flakes' build --out-link "$APP_DIR/result" "path:$SRC" \
+        || die "Falló 'nix build'. Revisa el error de arriba."
+    rm -f "$APP_DIR/obsidian2pdf.py" "$APP_DIR/style.css" "$APP_DIR/template.html"  # restos de una instalación sin Nix
+    ln -sf "$APP_DIR/result/bin/obsidian2pdf" "$BIN"
+    PY="$APP_DIR/result/share/obsidian2pdf/python3"
+else
+    rm -f "$APP_DIR/result"  # restos de una instalación con Nix
+    install -m 644 "$SRC/style.css" "$SRC/template.html" "$APP_DIR/"
+    install -m 755 "$SRC/obsidian2pdf.py" "$APP_DIR/"
+    ln -sf "$APP_DIR/obsidian2pdf.py" "$BIN"
+fi
 ok "Programa instalado en $APP_DIR"
 ok "Comando: $BIN"
 case ":$PATH:" in *":$HOME/.local/bin:"*) ;; *) warn "$HOME/.local/bin no está en tu PATH; añádelo para usar el comando 'obsidian2pdf'" ;; esac
@@ -178,7 +202,7 @@ if [ "$write_config" -eq 1 ]; then
     detected=()
     for j in "$HOME/.config/obsidian/obsidian.json" "$HOME/.var/app/md.obsidian.Obsidian/config/obsidian/obsidian.json" "$HOME/snap/obsidian/current/.config/obsidian/obsidian.json"; do
         [ -f "$j" ] || continue
-        while IFS= read -r p; do [ -n "$p" ] && detected+=("$p"); done < <(python3 - "$j" <<'PY' 2>/dev/null || true
+        while IFS= read -r p; do [ -n "$p" ] && detected+=("$p"); done < <("$PY" - "$j" <<'PY' 2>/dev/null || true
 import json, sys
 try:
     for v in (json.load(open(sys.argv[1])).get("vaults") or {}).values():
@@ -299,8 +323,8 @@ label_company = $(toml_str "$l_company")
 EOF
     } > "$CONF"
     # Comprobar que el TOML generado es válido
-    if command -v python3 >/dev/null 2>&1 && python3 -c 'import tomllib' 2>/dev/null; then
-        python3 -c 'import sys, tomllib; tomllib.load(open(sys.argv[1], "rb"))' "$CONF" \
+    if command -v "$PY" >/dev/null 2>&1 && "$PY" -c 'import tomllib' 2>/dev/null; then
+        "$PY" -c 'import sys, tomllib; tomllib.load(open(sys.argv[1], "rb"))' "$CONF" \
             || die "El config.toml generado no es válido; revísalo: $CONF"
     fi
     ok "Configuración guardada en $CONF"
@@ -317,8 +341,12 @@ elif ! "$SYSTEMCTL" --user show-environment >/dev/null 2>&1; then
 elif confirm "¿Instalar el servicio que vigila tus bóvedas y exporta al pasar una nota a 'finished'?" S; then
     [ -f "$SRC/systemd/$UNIT" ] || die "No encuentro systemd/$UNIT junto a install.sh"
     mkdir -p "$UNIT_DIR"
-    py=$(command -v python3 || echo /usr/bin/python3)
-    sed "s|^ExecStart=.*|ExecStart=$py $APP_DIR/obsidian2pdf.py --watch|" "$SRC/systemd/$UNIT" > "$UNIT_DIR/$UNIT"
+    if [ "$USE_NIX" -eq 1 ]; then
+        exec_start="$APP_DIR/result/bin/obsidian2pdf --watch"
+    else
+        exec_start="$(command -v python3 || echo /usr/bin/python3) $APP_DIR/obsidian2pdf.py --watch"
+    fi
+    sed "s|^ExecStart=.*|ExecStart=$exec_start|" "$SRC/systemd/$UNIT" > "$UNIT_DIR/$UNIT"
     # restart: si ya estaba en marcha, carga la versión nueva
     if "$SYSTEMCTL" --user daemon-reload && "$SYSTEMCTL" --user enable "$UNIT" >/dev/null 2>&1 \
             && "$SYSTEMCTL" --user restart "$UNIT"; then

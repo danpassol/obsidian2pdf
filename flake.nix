@@ -19,6 +19,8 @@
           # ASSETS es la carpeta del script: style.css y template.html van a su lado
           installPhase = ''
             install -Dm644 -t $out/share/obsidian2pdf obsidian2pdf.py style.css template.html
+            # install.sh usa este Python para el asistente de configuración (NixOS no trae python3)
+            ln -s ${pythonFor pkgs}/bin/python3 $out/share/obsidian2pdf/python3
             makeWrapper ${pythonFor pkgs}/bin/python3 $out/bin/obsidian2pdf \
               --add-flags $out/share/obsidian2pdf/obsidian2pdf.py \
               --prefix PATH : ${pkgs.lib.makeBinPath [ pkgs.pandoc ]} \
